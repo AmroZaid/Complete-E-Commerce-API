@@ -1,31 +1,36 @@
 const pool = require("../config/database");
 
-// جلب كل التصنيفات
-async function getCategories(req, res) {
+// GET /api/categories
+async function getCategories(req, res, next) {
   try {
     const result = await pool.query("SELECT * FROM categories ORDER BY id ASC");
     res.status(200).json({ success: true, count: result.rows.length, data: result.rows });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to retrieve categories" });
+    next(error);
   }
 }
 
-// جلب تصنيف بواستطة ID
-async function getCategoryById(req, res) {
+// GET /api/categories/:id
+async function getCategoryById(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const { id } = req.params;
+
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, message: "Invalid category ID format" });
+    }
+
     const result = await pool.query("SELECT * FROM categories WHERE id = $1", [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
     res.status(200).json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to retrieve category" });
+    next(error);
   }
 }
 
-// إنشاء تصنيف جديد
-async function createCategory(req, res) {
+// POST /api/categories (Admin only)
+async function createCategory(req, res, next) {
   try {
     const { name, description } = req.body;
     if (!name) {
@@ -37,25 +42,30 @@ async function createCategory(req, res) {
     );
     res.status(201).json({ success: true, message: "Category created successfully", data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to create category" });
+    next(error);
   }
 }
 
-// تحديث تصنيف
-async function updateCategory(req, res) {
+// PUT /api/categories/:id (Admin only)
+async function updateCategory(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const { id } = req.params;
     const { name, description } = req.body;
+
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, message: "Invalid category ID format" });
+    }
+
     const result = await pool.query(
       "UPDATE categories SET name = $1, description = $2 WHERE id = $3 RETURNING *",
-      [name, description, id]
+      [name, description || null, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
     res.status(200).json({ success: true, message: "Category updated successfully", data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to update category" });
+    next(error);
   }
 }
 
